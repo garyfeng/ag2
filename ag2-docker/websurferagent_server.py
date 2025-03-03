@@ -1,34 +1,41 @@
+# demo.py
 from dotenv import load_dotenv
 import os
 import sys
-from autogen import AssistantAgent, UserProxyAgent
-from autogen.tools.experimental import BrowserUseTool
 
 # Load environment variables from .env file
 load_dotenv()
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY") 
-if not OPENAI_API_KEY:
+api_key = os.environ.get("OPENAI_API_KEY")
+if not api_key:
     sys.exit("Error: Please set the OPENAI_API_KEY environment variable in your .env file.")
-config_list = [{"model": "gpt-4o-mini", "api_key": OPENAI_API_KEY}]
 
+
+# LLM configuration for AG2
 llm_config = {
-    "config_list": config_list,
+    "config_list": [{"model": "gpt-4o-mini", "api_key": api_key}]
 }
 
-BROWSER_HEADLESS = os.environ.get("BROWSER_HEADLESS", "False").lower() == "true"
-browser_config={"headless": BROWSER_HEADLESS}
+# Import AG2 agents
+from autogen.agents.experimental import WebSurferAgent
+from autogen import UserProxyAgent
 
-user_proxy = UserProxyAgent(name="user_proxy", human_input_mode="NEVER")
-assistant = AssistantAgent(name="assistant", llm_config=llm_config)
-
-browser_use_tool = BrowserUseTool(
+# Initialize the WebSurferAgent
+websurfer = WebSurferAgent(
+    name="WebSurfer",
+    system_message="You are a web browsing agent that can search the internet and complete tasks.",
     llm_config=llm_config,
-    browser_config=browser_config,
+    web_tool="browser_use",
 )
 
-browser_use_tool.register_for_execution(user_proxy)
-browser_use_tool.register_for_llm(assistant)
+# Initialize the human agent (UserProxyAgent)
+human = UserProxyAgent(name="human", human_input_mode="ALWAYS")
 
+print("Welcome to the AG2 WebSurfer demo!")
+print("Registered tools:", websurfer.tools)
+
+for tool in websurfer.tools:
+    # print(f"Tool name: {tool.function.get('name') if hasattr(tool, 'function') else 'unknown'}")
+    print(f"Tool name: {tool.name}")
 
 print("Enter a task for the WebSurferAgent (or type 'exit' to quit):")
 
@@ -43,11 +50,13 @@ while True:
         break
 
     # Initiate conversation: human sends a message to the WebSurferAgent
-    response = user_proxy.initiate_chat(
-        recipient=assistant,
+    response = human.initiate_chat(
+        recipient=websurfer,
+        tools=websurfer.tools,
         message=query,
-        max_turns=2,
-    )    
+        max_turns=5  # Adjust this if you need a longer conversation
+    )
+    
     if response is None:
         print("No response received from the agent.")
         continue
