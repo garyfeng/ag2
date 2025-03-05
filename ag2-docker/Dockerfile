@@ -28,6 +28,8 @@ RUN pip install --no-cache-dir ag2[browser-use] playwright
 RUN playwright install && \
     if [ "$(uname -s)" = "Linux" ]; then playwright install-deps; fi
 
+RUN pip install nest_asyncio
+
 # Set the working directory
 WORKDIR /app
 
